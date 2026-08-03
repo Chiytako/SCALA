@@ -1,0 +1,109 @@
+# CELERITAS probe, decoder_stream = 256 (window sweep arm of celeritas_probe.yaml).
+# Compute-matched across the sweep: the windowed mask is built dense (S x S).
+
+vocab_size: 99584
+d_token: 384
+max_seq_len: 512          # a training shape, not a limit (top encoder is NoPE)
+tie_word_embeddings: true
+scale_embeddings: true
+init_std: 0.02
+
+rec_loss_alpha: 0.0       # nothing is substituted at inference, so nothing to fix
+rec_loss_kind: cosine
+rec_loss_detach_target: true
+rec_loss_min_level: 2
+chunk_cond_prob: 0.0
+z_loss_weight: 1.0e-4
+mtp_depth: 0
+mtp_loss_weight: 0.0
+dtype: bfloat16
+
+levels:
+  # ------------------------------------------------------------- level 1 ----
+  - chunk_size: 4
+    converter_width: 1
+    converter_kernel: 3
+    chunker: concat
+    rec_loss_weight: 1.0
+    encoder_window: 16        # units == 64 tokens of level-1 receptive field
+    decoder_stream: 256
+
+    encoder:
+      d_model: 384
+      n_layers: 4
+      ffn_inter_size: 1024
+      n_dense_layers: 4
+      learned_residual_scale: true
+      attention:
+        kind: gqa
+        n_heads: 6
+        n_kv_heads: 2
+        head_dim: 64
+        qk_norm: true
+        output_gate: true
+        pos: rope             # span-bounded by `encoder_window`, so exact
+        rope_theta: 500000.0
+        rope_partial: 0.5
+      moe: {enabled: false}
+
+    decoder:
+      d_model: 384
+      n_layers: 3
+      ffn_inter_size: 1024
+      n_dense_layers: 3
+      learned_residual_scale: true
+      attention:
+        kind: gqa
+        n_heads: 6
+        n_kv_heads: 2
+        head_dim: 64
+        qk_norm: true
+        output_gate: true
+        pos: rope             # span-bounded by `decoder_stream`, so exact
+        rope_theta: 10000.0
+      moe: {enabled: false}
+
+  # ------------------------------------------------------------- level 2 ----
+  - chunk_size: 4
+    converter_width: 2
+    converter_kernel: 3
+    chunker: concat
+    rec_loss_weight: 1.0
+    decoder_stream: 256
+
+    encoder:                  # the ONLY stack whose sequence grows with T
+      d_model: 384
+      n_layers: 6
+      ffn_inter_size: 1024
+      n_dense_layers: 6
+      learned_residual_scale: true
+      attention:
+        kind: mla
+        n_heads: 6
+        mla_q_lora_rank: 192
+        mla_kv_lora_rank: 128
+        mla_qk_nope_head_dim: 96    # 64 + the 32 freed by dropping the RoPE key
+        mla_qk_rope_head_dim: 0     # required by, and the payoff of, `pos: nope`
+        mla_v_head_dim: 64
+        qk_norm: false        # required for the weight-absorbed latent cache
+        output_gate: true
+        attn_sink: true       # NoPE disperses over long contexts; this is the fix
+        pos: nope
+      moe: {enabled: false}
+
+    decoder:
+      d_model: 384
+      n_layers: 2
+      ffn_inter_size: 1024
+      n_dense_layers: 2
+      learned_residual_scale: true
+      attention:
+        kind: gqa
+        n_heads: 6
+        n_kv_heads: 2
+        head_dim: 64
+        qk_norm: true
+        output_gate: true
+        pos: rope
+        rope_theta: 10000.0
+      moe: {enabled: false}

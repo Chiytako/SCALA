@@ -1,0 +1,50 @@
+# Probe training run (single GPU, ~30M tokens): produces a checkpoint for
+# ranking inference-side substitution protocols.
+train:
+  model_config: configs/base_probe.yaml
+  data_root: data/tokens_ja
+  out_dir: runs/probe
+  run_name: probe
+
+  seq_len: 512
+  micro_batch_size: 16
+  global_batch_tokens: 65536         # 64K tokens/step -> ~458 steps
+  total_tokens: 30.0e6
+  bs_warmup_start_frac: 1.0
+  bs_warmup_tokens: 1.0
+
+  lr: 1.5e-3
+  adamw_lr_mult: 1.0
+  weight_decay: 0.1
+  embedding_weight_decay: 0.0
+  momentum: 0.95
+  ns_steps: 5
+  adam_betas: [0.9, 0.95]
+  grad_clip: 1.0
+  warmup_steps: 50
+  decay_frac: 0.25
+  min_lr_ratio: 0.03
+  decay_shape: 1-sqrt
+  spike_guard: true
+
+  moe_bias_freeze_frac: 0.95
+  mtp_weight_start: 0.0
+  mtp_weight_end: 0.0
+  self_cond_prob_end: 0.0
+  self_cond_ramp_frac: 0.5
+
+  parallel: none
+  dtype: bfloat16
+  compile: false
+  activation_checkpointing: none
+  num_workers: 2
+  seed: 20260730
+  max_memory_fraction: 0.9
+
+  log_every: 20
+  eval_every: 1000
+  eval_batches: 4
+  save_every: 200
+  keep_last: 2
+  wandb_project: null
+  resume: auto

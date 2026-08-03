@@ -1,0 +1,30 @@
+# Japanese-majority data mixture (~400M tokens) with English balance.
+tokenizer: llm-jp/llm-jp-3-1.8b
+append_eos: true
+shard_tokens: 67108864          # 2^26 tokens per shard (~256 MiB at uint32)
+dtype: uint32
+seed: 20260726
+
+sources:
+  - name: ja_wikipedia
+    hf: wikimedia/wikipedia
+    config: 20231101.ja
+    split: train
+    text_key: text
+    weight: 0.45
+    epochs_cap: 1.0
+
+  - name: ja_fineweb2_edu
+    hf: hotchpotch/fineweb-2-edu-japanese
+    split: train
+    text_key: text
+    weight: 0.40
+    epochs_cap: 1.0
+
+  - name: en_wikipedia
+    hf: wikimedia/wikipedia
+    config: 20231101.en
+    split: train
+    text_key: text
+    weight: 0.15
+    epochs_cap: 1.0

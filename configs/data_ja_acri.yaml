@@ -1,0 +1,67 @@
+# SCALA pretraining mixture for ACRi as006 (no internet; local llm-jp corpus v3
+# via reader: local_jsonl).  Japanese 0.60 / English 0.25 / code 0.15, no math.
+
+tokenizer: /scratch/u_chitako/SCALA/tokenizers/llm-jp-tok-v3
+append_eos: true
+shard_tokens: 268435456
+dtype: uint32
+seed: 20260728
+
+_root: &root /home/u_chitako/data/raw/llm-jp-corpus-v3-new
+
+sources:
+  # ---------------------------------------------------------------- Japanese
+  - name: ja_cc
+    reader: local_jsonl
+    root: *root
+    path_glob: ["ja/ja_cc/level0/*.jsonl.gz"]
+    text_key: text
+    weight: 0.42
+    epochs_cap: 1.0
+    note: "llm-jp CC, quality level0 (421 GB of 698 GB total across 3 levels)"
+
+  - name: ja_wiki
+    reader: local_jsonl
+    root: *root
+    path_glob: ["ja/ja_wiki/*.jsonl.gz"]
+    skip_files: 2          # train_0 / train_1 are the held-out eval slice
+    text_key: text
+    weight: 0.10
+    epochs_cap: 4.0
+
+  - name: ja_warp_html
+    reader: local_jsonl
+    root: *root
+    path_glob: ["ja/ja_warp_html/level0/*.jsonl.gz"]
+    text_key: text
+    weight: 0.05
+    epochs_cap: 4.0
+
+  - name: ja_kaken
+    reader: local_jsonl
+    root: *root
+    path_glob: ["ja/kaken/*.jsonl.gz"]
+    text_key: text
+    weight: 0.03
+    epochs_cap: 4.0
+    note: "KAKEN grant abstracts -- academic register, absent from CC"
+
+  # ----------------------------------------------------------------- English
+  #   Only en_dolma/c4 has files in this copy; the other subsets are empty
+  #   directories.  Do not widen the glob expecting them to appear.
+  - name: en_dolma
+    reader: local_jsonl
+    root: *root
+    path_glob: ["en/en_dolma/**/*.jsonl.gz"]
+    text_key: text
+    weight: 0.25
+    epochs_cap: 1.0
+
+  # -------------------------------------------------------------------- code
+  - name: code_stack
+    reader: local_jsonl
+    root: *root
+    path_glob: ["code/code_stack/*.jsonl.gz"]
+    text_key: text
+    weight: 0.15
+    epochs_cap: 1.0

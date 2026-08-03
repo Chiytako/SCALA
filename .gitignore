@@ -1,0 +1,35 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+# Root-anchored on purpose.  The bare form `data/` matches a directory named
+# data at ANY depth -- including the `scala/data/` PACKAGE, which it silently
+# excluded from every clone until 2026-08-02: the public repo could not even
+# import its own trainer.  Corpora and run artifacts live only at the root.
+/runs/
+/export/
+/data/
+*.bin
+*.out
+wandb/
+.venv/
+
+# Checkpoints and exports are large enough to matter even when a stray one
+# lands outside runs/ -- the 8B's state.pt is 33 GB.
+*.safetensors
+*.pt
+*.ckpt
+
+# Caches that belong to a machine rather than to the project.
+.hf/
+.pylibs/
+.ruff_cache/
+.mypy_cache/
+triton-cache/
+inductor-cache/
+
+# Credentials.  Nothing secret is committed here -- the HF token and the GB10
+# login are passed as environment variables at call time -- and these keep it
+# that way.
+.env
+*.token
+secrets.*

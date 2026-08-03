@@ -1,0 +1,23 @@
+# Core -- torch itself is NOT pinned here: on vast.ai keep whatever the base
+# image ships, since it is matched to the host driver.  Minimum 2.8 for FSDP2
+# `fully_shard` + DTensor; 2.9+ additionally gives `torch._grouped_mm`, which
+# the MoE layer uses for its fused per-expert GEMMs (it falls back cleanly).
+torch>=2.8
+
+numpy>=1.26
+pyyaml>=6.0
+safetensors>=0.4.3
+tqdm>=4.66
+
+# Data preparation
+datasets>=3.0
+transformers>=4.45          # tokenizer only
+huggingface_hub>=0.25
+zstandard>=0.22             # several JA corpora ship .jsonl.zst
+pyarrow>=16.0
+
+# Logging / evaluation
+wandb>=0.17
+
+# Development
+pytest>=8.0

@@ -1,0 +1,160 @@
+# SCALA small v2: same hierarchy/widths/depths as base_small.yaml; adds PID
+# routing-bias controller, MLA without QK-Norm, learned residual scaling, gating.
+
+vocab_size: 99584          # llm-jp-tokenizer v3
+d_token: 512               # D_0
+max_seq_len: 1024
+tie_word_embeddings: true  # 51M of embedding is a lot at this scale
+scale_embeddings: true
+init_std: 0.02
+
+rec_loss_alpha: 0.3
+rec_loss_kind: cosine
+rec_loss_detach_target: true
+z_loss_weight: 1.0e-4
+mtp_depth: 1
+mtp_loss_weight: 0.3
+dtype: bfloat16
+
+levels:
+  # ------------------------------------------------------------- level 1 ---
+  - chunk_size: 4
+    converter_width: 4
+    converter_kernel: 3
+    chunker: concat
+    rec_loss_weight: 1.0
+
+    encoder:                # T/4 units
+      d_model: 512
+      n_layers: 6
+      ffn_inter_size: 1408
+      n_dense_layers: 1
+      learned_residual_scale: true
+      full_attn_every: 3
+      attention:
+        kind: gqa
+        n_heads: 8
+        n_kv_heads: 2
+        head_dim: 64
+        qk_norm: true
+        output_gate: true
+        rope_theta: 500000.0
+        rope_partial: 0.5
+        window: 128
+      moe:
+        enabled: true
+        n_routed_experts: 32
+        n_shared_experts: 1
+        top_k: 4
+        expert_inter_size: 128
+        shared_inter_size: 256
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.002
+        bias_controller: pid
+        bias_clip: 2.0
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001
+
+    decoder:                # 8 positions, runs every token
+      d_model: 512
+      n_layers: 4
+      ffn_inter_size: 1408
+      n_dense_layers: 1
+      learned_residual_scale: true
+      attention:
+        kind: gqa
+        n_heads: 8
+        n_kv_heads: 2
+        head_dim: 64
+        qk_norm: true
+        output_gate: true
+        rope_theta: 10000.0
+      moe:
+        enabled: true
+        n_routed_experts: 16
+        n_shared_experts: 1
+        top_k: 3
+        expert_inter_size: 128
+        shared_inter_size: 256
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.002
+        bias_controller: pid
+        bias_clip: 2.0
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001
+
+  # ------------------------------------------------------------- level 2 ---
+  - chunk_size: 4
+    converter_width: 4
+    converter_kernel: 3
+    chunker: concat
+    rec_loss_weight: 1.0
+
+    encoder:                # T/16 units -- the global stack, amortised 16x
+      d_model: 512
+      n_layers: 10
+      ffn_inter_size: 1408
+      n_dense_layers: 1
+      learned_residual_scale: true
+      attention:
+        kind: mla
+        n_heads: 8
+        mla_q_lora_rank: 256
+        mla_kv_lora_rank: 128
+        mla_qk_nope_head_dim: 64
+        mla_qk_rope_head_dim: 32
+        mla_v_head_dim: 64
+        qk_norm: false     # v2: enables the weight-absorbed latent KV cache
+        output_gate: true
+        rope_theta: 500000.0
+      moe:
+        enabled: true
+        n_routed_experts: 64
+        n_shared_experts: 1
+        top_k: 4
+        expert_inter_size: 128
+        shared_inter_size: 256
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.002
+        bias_controller: pid
+        bias_clip: 2.0
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001
+        n_groups: 4
+        topk_groups: 2
+
+    decoder:                # 8 positions
+      d_model: 512
+      n_layers: 2
+      ffn_inter_size: 1408
+      n_dense_layers: 1
+      learned_residual_scale: true
+      attention:
+        kind: gqa
+        n_heads: 8
+        n_kv_heads: 2
+        head_dim: 64
+        qk_norm: true
+        output_gate: true
+        rope_theta: 10000.0
+      moe:
+        enabled: true
+        n_routed_experts: 16
+        n_shared_experts: 1
+        top_k: 3
+        expert_inter_size: 128
+        shared_inter_size: 256
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.002
+        bias_controller: pid
+        bias_clip: 2.0
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001

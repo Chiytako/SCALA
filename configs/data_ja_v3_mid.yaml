@@ -1,0 +1,131 @@
+# SCALA v3 mid-training mixture: last ~15% of the token budget.
+# Japanese-dominant: 0.74 Japanese / 0.18 English agentic / 0.08 code+math.
+
+tokenizer: llm-jp/llm-jp-4-8b-base
+append_eos: true
+shard_tokens: 268435456
+dtype: uint32
+seed: 20260728
+
+sources:
+  # 1. Japanese reasoning / instruction (llm-jp-4 SFT dump), rendered via the
+  #    harmony chat template.  `messages` is a JSON string, not a list.
+  - name: mid_ja_magpie
+    hf: llm-jp/llm-jp-4-thinking-sft-data
+    config: llmjp_magpie_sft_v1.0
+    split: reasoning_medium
+    format: chat
+    weight: 0.13
+    epochs_cap: 2.0
+
+  - name: mid_ja_multiturn
+    hf: llm-jp/llm-jp-4-thinking-sft-data
+    config: multiturn_calm3
+    split: reasoning_medium
+    format: chat
+    weight: 0.08
+    epochs_cap: 2.0
+
+  - name: mid_ja_wiki_extract
+    hf: llm-jp/llm-jp-4-thinking-sft-data
+    config: llmjp_extraction_wiki_ja_v0.3
+    split: reasoning_high
+    format: chat
+    weight: 0.07
+    epochs_cap: 2.0
+
+  - name: mid_ja_jaster
+    hf: llm-jp/llm-jp-4-thinking-sft-data
+    config: jaster_v1.4.1
+    split: reasoning_medium
+    format: chat
+    weight: 0.07
+    epochs_cap: 1.0
+
+  # 2. Japanese pretraining replay (anti-forgetting), 30%.
+  - name: mid_ja_edu
+    hf: hotchpotch/fineweb-2-edu-japanese
+    split: train
+    text_key: text
+    weight: 0.22
+    epochs_cap: 2.0
+
+  - name: mid_ja_wiki
+    hf: wikimedia/wikipedia
+    config: 20231101.ja
+    split: train
+    text_key: text
+    weight: 0.08
+    epochs_cap: 4.0
+
+  # 3. English agentic / tool-use format, capped at 0.18 total.
+  - name: mid_ag_nemotron_tools
+    hf: nvidia/Nemotron-SFT-Agentic-v2
+    split: tool_calling
+    format: chat
+    weight: 0.06
+    epochs_cap: 1.0
+    note: "teacher DeepSeek-V3.2; messages + OpenAI function specs in `tools`"
+
+  - name: mid_ag_dsv4_tools
+    hf: zake7749/deepseek-v4-pro-agent-tool-calling-trajectory
+    split: train
+    format: chat
+    weight: 0.05
+    epochs_cap: 2.0
+    note: "teacher DeepSeek-V4-pro; `tools` is a JSON string, reasoning inline"
+
+  - name: mid_ag_kimi_k3
+    hf: greghavens/kimi-k3-coding-and-debugging-traces
+    split: train
+    format: chat
+    weight: 0.04
+    epochs_cap: 2.0
+    note: "teacher Kimi K3, reasoning_effort=max; reasoning_content field"
+
+  - name: mid_ag_laguna
+    hf: mgoin/Laguna-S-2.1-trajectories
+    split: train
+    format: chat
+    weight: 0.03
+    epochs_cap: 2.0
+    note: "teacher poolside Laguna S 2.1; ShareGPT `conversations`"
+
+  # 4. Japanese-native tool calling.
+  - name: mid_ja_funccall
+    hf: DataPilot/Function-Calling-Japanese-Dataset
+    split: train
+    format: chat
+    weight: 0.04
+    epochs_cap: 4.0
+    note: "18.8% Japanese: Japanese user turns against English tool schemas,
+           which is what a real Japanese agent deployment looks like"
+
+  - name: mid_ja_qa_reasoning
+    hf: hotchpotch/japanese-qa-reasoning-100k
+    split: train
+    format: chat
+    # Flat QA table, not a transcript; fields must be assembled into a turn pair.
+    chat_from_fields:
+      user: "{instruction}\n\n{question}"
+      assistant: "{answer}"
+    weight: 0.05
+    epochs_cap: 3.0
+    note: "71.5% Japanese -- the most Japanese reasoning corpus found"
+
+  # 5. Code / math, kept small.
+  - name: mid_jp_en_coding
+    hf: llm-jp/llm-jp-4-thinking-sft-data
+    config: synthetic_jp_en_coding
+    split: reasoning_medium
+    format: chat
+    weight: 0.05
+    epochs_cap: 2.0
+
+  - name: mid_math_swallow
+    hf: tokyotech-llm/swallow-math-v2
+    config: swallow-math-v2-qa
+    split: train
+    text_key: text
+    weight: 0.03
+    epochs_cap: 3.0

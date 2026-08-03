@@ -1,0 +1,50 @@
+# Tiny debug config: 2 levels, MoE, MLA top level, GQA elsewhere, MTP, rec-loss.
+vocab_size: 2048
+d_token: 128
+max_seq_len: 256
+tie_word_embeddings: true
+rec_loss_alpha: 0.3
+mtp_depth: 1
+mtp_loss_weight: 0.3
+
+levels:
+  - chunk_size: 4
+    converter_width: 4
+    chunker: concat
+    encoder:
+      d_model: 128
+      n_layers: 2
+      ffn_inter_size: 256
+      n_dense_layers: 1
+      attention: {kind: gqa, n_heads: 4, n_kv_heads: 2, head_dim: 32, qk_norm: true, rope_partial: 0.5}
+      moe: {enabled: true, n_routed_experts: 8, n_shared_experts: 1, top_k: 2,
+            expert_inter_size: 64, shared_inter_size: 64}
+    decoder:
+      d_model: 128
+      n_layers: 2
+      ffn_inter_size: 256
+      n_dense_layers: 1
+      attention: {kind: gqa, n_heads: 4, n_kv_heads: 2, head_dim: 32, qk_norm: true, rope_theta: 10000.0}
+      moe: {enabled: true, n_routed_experts: 8, n_shared_experts: 1, top_k: 2,
+            expert_inter_size: 64, shared_inter_size: 64}
+
+  - chunk_size: 4
+    converter_width: 4
+    chunker: concat
+    encoder:
+      d_model: 128
+      n_layers: 2
+      ffn_inter_size: 256
+      n_dense_layers: 1
+      attention: {kind: mla, n_heads: 4, mla_q_lora_rank: 64, mla_kv_lora_rank: 32,
+                  mla_qk_nope_head_dim: 24, mla_qk_rope_head_dim: 8, mla_v_head_dim: 32, qk_norm: true}
+      moe: {enabled: true, n_routed_experts: 8, n_shared_experts: 1, top_k: 2,
+            expert_inter_size: 64, shared_inter_size: 64, n_groups: 2, topk_groups: 1}
+    decoder:
+      d_model: 128
+      n_layers: 2
+      ffn_inter_size: 256
+      n_dense_layers: 1
+      attention: {kind: gqa, n_heads: 4, n_kv_heads: 2, head_dim: 32, qk_norm: true, rope_theta: 10000.0}
+      moe: {enabled: true, n_routed_experts: 8, n_shared_experts: 1, top_k: 2,
+            expert_inter_size: 64, shared_inter_size: 64}

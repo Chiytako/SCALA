@@ -1,0 +1,65 @@
+# SCALA small v4, 2B tokens, on ACRi as006 (1x AMD MI210 64 GB, ROCm).
+# Sized so the WSD cooldown completes inside the reservation window.
+train:
+  model_config: configs/base_small_v4.yaml
+  data_root: /scratch/u_chitako/tokens_acri
+  out_dir: /scratch/u_chitako/runs/scala-small-v4-acri
+  run_name: scala-small-v4-acri
+
+  seq_len: 1024
+  micro_batch_size: 32
+  global_batch_tokens: 262144
+  total_tokens: 2.0e9
+  bs_warmup_start_frac: 0.5
+  bs_warmup_tokens: 20.0e6
+
+  lr: 1.5e-3
+  adamw_lr_mult: 1.0
+  weight_decay: 0.1
+  embedding_weight_decay: 0.0
+  momentum: 0.95
+  ns_steps: 5
+  adam_betas: [0.9, 0.95]
+  grad_clip: 1.0
+  warmup_steps: 200
+  decay_frac: 0.25
+  min_lr_ratio: 0.03
+  decay_shape: 1-sqrt
+  spike_guard: true
+
+  # ---- mid-training: the last 15% of tokens ---------------------------------
+  # Every source here has far more tokens on disk than the phase consumes.
+  midtrain_frac: 0.15
+  midtrain_weights:
+    ja_wiki: 0.34
+    ja_kaken: 0.16
+    ja_warp_html: 0.15
+    ja_cc: 0.20
+    code_stack: 0.15
+
+  moe_bias_freeze_frac: 0.95
+  mtp_weight_start: 0.3
+  mtp_weight_end: 0.1
+  self_cond_prob_end: 0.25
+  self_cond_ramp_frac: 0.5
+
+  parallel: none
+  dtype: bfloat16
+  param_dtype: bfloat16
+  optimizer_state_dtype: bfloat16
+  compile: true
+  compile_mode: default
+  activation_checkpointing: none
+  num_workers: 8
+  seed: 20260728
+  max_memory_fraction: 0.92        # dedicated card for the whole reservation
+
+  log_every: 20
+  eval_every: 500
+  eval_batches: 20
+  # The reservation can end without warning and /scratch is server-local:
+  # checkpoint often, resume automatically.
+  save_every: 200
+  keep_last: 3
+  wandb_project: null
+  resume: auto

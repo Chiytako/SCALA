@@ -1,0 +1,79 @@
+# SCALA 8B-A1B v2 training run on vast.ai (1x H100 80GB).
+# Muon+AdamW, WSD with 1-sqrt decay to zero, ZClip, two-phase data curriculum.
+train:
+  model_config: configs/base_8b_a1b_v2.yaml
+  data_root: /data/tokens
+  out_dir: /workspace/runs/scala-8b-a1b-v2
+  run_name: scala-8b-a1b-v2
+
+  # --- token budget ----------------------------------------------------------
+  seq_len: 4096                      # half the activation memory of 8192
+  micro_batch_size: 4
+  global_batch_tokens: 262144        # 256K tok/step -> ~2,670 steps
+  total_tokens: 620.0e6
+  bs_warmup_start_frac: 0.5
+  bs_warmup_tokens: 40.0e6
+
+  # --- optimiser -------------------------------------------------------------
+  # muP-style 1/width + sqrt-batch scaling from the d=512 base LR (1.5e-3).
+  lr: 8.0e-4
+  adamw_lr_mult: 1.0
+  weight_decay: 0.1
+  embedding_weight_decay: 0.0
+  momentum: 0.95
+  ns_steps: 5
+  adam_betas: [0.9, 0.95]
+  grad_clip: 1.0
+  grad_clip_mode: zclip
+  zclip_alpha: 0.97
+  zclip_z: 2.5
+  warmup_steps: 150
+  decay_frac: 0.15
+  min_lr_ratio: 0.0                  # decay to zero, not to a floor
+  decay_shape: 1-sqrt
+  spike_guard: true
+
+  # --- objective schedules ---------------------------------------------------
+  moe_bias_freeze_frac: 0.95
+  mtp_weight_start: 0.3
+  mtp_weight_end: 0.1
+  self_cond_prob_end: 0.25
+  self_cond_ramp_frac: 0.5
+
+  # --- two-phase data curriculum ---------------------------------------------
+  midtrain_frac: 0.15
+  midtrain_weights:
+    ja_fineweb2_edu: 0.30
+    ja_wikipedia: 0.08
+    ja_aozora: 0.02
+    math_swallow_v2: 0.25
+    code_swallow_v2: 0.20
+    en_finepdfs_edu: 0.10
+    en_fineweb_edu: 0.05
+    ja_fineweb2: 0.00
+    en_zyda2: 0.00
+
+  # --- systems ---------------------------------------------------------------
+  # Single rank; true bf16 masters + bf16 optimiser state is what fits in 80 GiB.
+  # Updates use stochastic rounding or bf16 masters swallow small updates.
+  parallel: none
+  dtype: bfloat16
+  param_dtype: bfloat16
+  optimizer_state_dtype: bfloat16
+  compile: true
+  compile_mode: default
+  activation_checkpointing: selective
+  ac_every_n: 2
+  num_workers: 8
+  seed: 20260727
+  max_memory_fraction: 0.0           # dedicated GPU; no unified-memory hazard
+
+  # --- io --------------------------------------------------------------------
+  # resume: auto + frequent saves: interruptible instances can vanish.
+  log_every: 20
+  eval_every: 400
+  eval_batches: 20
+  save_every: 200
+  keep_last: 2
+  wandb_project: null
+  resume: auto

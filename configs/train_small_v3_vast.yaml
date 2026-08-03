@@ -1,0 +1,63 @@
+# SCALA small v3 training run (RTX 5090, vast.ai): base_small_v3.yaml architecture,
+# data_ja_v2.yaml mixture, WSD 1-sqrt cooldown, mid-training curriculum (last 15%).
+train:
+  model_config: configs/base_small_v3.yaml
+  data_root: /data/tokens
+  out_dir: /workspace/runs/scala-small-v3-vast
+  run_name: scala-small-v3-vast
+
+  seq_len: 1024
+  micro_batch_size: 32
+  global_batch_tokens: 131072
+  total_tokens: 900.0e6            # ~6,866 steps
+  bs_warmup_start_frac: 0.5
+  bs_warmup_tokens: 10.0e6
+
+  lr: 1.5e-3
+  adamw_lr_mult: 1.0
+  weight_decay: 0.1
+  embedding_weight_decay: 0.0
+  momentum: 0.95
+  ns_steps: 5
+  adam_betas: [0.9, 0.95]
+  grad_clip: 1.0
+  warmup_steps: 100
+  decay_frac: 0.25
+  min_lr_ratio: 0.03
+  decay_shape: 1-sqrt
+  spike_guard: true
+
+  # ---- mid-training: the last 15% of tokens, high-quality blend only -------
+  midtrain_frac: 0.15
+  # ja_aozora omitted: filter_meta matches nothing in this dataset revision
+  # (tokenises to 0 shards).
+  midtrain_weights:
+    ja_fineweb2_edu: 0.47
+    math_swallow_v2: 0.32
+    ja_wikipedia: 0.11
+    en_fineweb_edu: 0.10
+
+  moe_bias_freeze_frac: 0.95
+  mtp_weight_start: 0.3
+  mtp_weight_end: 0.1
+  self_cond_prob_end: 0.25
+  self_cond_ramp_frac: 0.5
+
+  parallel: none
+  dtype: bfloat16
+  param_dtype: bfloat16
+  optimizer_state_dtype: bfloat16
+  compile: true
+  compile_mode: default
+  activation_checkpointing: none
+  num_workers: 8
+  seed: 20260727
+  max_memory_fraction: 0.92        # dedicated 32 GiB card, nothing else on it
+
+  log_every: 10
+  eval_every: 250
+  eval_batches: 20
+  save_every: 250
+  keep_last: 2
+  wandb_project: null
+  resume: auto

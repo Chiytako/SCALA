@@ -1,0 +1,87 @@
+# SCALA v3 pretraining mixture.  Tokenizer is llm-jp-tokenizer v4 (196,608):
+# logit KD requires the teacher's exact vocabulary.
+
+tokenizer: llm-jp/llm-jp-4-8b-base
+append_eos: true
+shard_tokens: 268435456
+dtype: uint32
+seed: 20260728
+
+sources:
+  # ---------------------------------------------------------------- Japanese
+  - name: ja_fineweb2_edu
+    hf: hotchpotch/fineweb-2-edu-japanese
+    split: train
+    text_key: text
+    weight: 0.33
+    epochs_cap: 2.0
+    note: "89.3B tok, educational-quality classifier over FineWeb-2 ja (ODC-BY)"
+
+  - name: ja_fineweb2
+    hf: HuggingFaceFW/fineweb-2
+    config: jpn_Jpan
+    split: train
+    text_key: text
+    weight: 0.12
+    epochs_cap: 1.0
+    note: "unfiltered, for the coverage the edu classifier throws away"
+
+  - name: ja_wikipedia
+    hf: wikimedia/wikipedia
+    config: 20231101.ja
+    split: train
+    text_key: text
+    weight: 0.05
+    epochs_cap: 4.0
+
+  - name: ja_aozora
+    hf: globis-university/aozorabunko-clean
+    split: train
+    text_key: text
+    weight: 0.02
+    epochs_cap: 4.0
+    # No filter_meta: 文字遣い種別 lives inside the `meta` dict, not as a
+    # top-level column, so filtering on it excludes every record.
+
+  # ----------------------------------------------------------------- English
+  - name: en_nemotron_hq
+    hf: Fredithefish/Nemotron-CC-HQ-20B
+    split: train
+    text_key: text
+    weight: 0.14
+    epochs_cap: 1.0
+    note: "20B tok, the ungated redistribution of Nemotron-CC's high-quality tier"
+
+  - name: en_fineweb_edu
+    hf: HuggingFaceFW/fineweb-edu
+    config: sample-100BT
+    split: train
+    text_key: text
+    weight: 0.06
+    epochs_cap: 1.0
+
+  # -------------------------------------------------------------- code / math
+  - name: code_swallow_v2
+    hf: tokyotech-llm/swallow-code-v2
+    # Must read JSONL directly: the `datasets` reader aborts on a `lint_report`
+    # schema clash (empty list in some files, struct in others).
+    reader: jsonl
+    # stage3 = LLM-scored tier, `high` is score>=8.  The packaged config alias
+    # points at a prefix that does not exist in the repo tree.
+    path_glob:
+      - "stage3-llm-score/python/high/*.jsonl"
+      - "stage3-llm-score/python/medium/*.jsonl"
+    text_key: text
+    weight: 0.13
+    epochs_cap: 2.0
+    note: "Apache-2.0, Qwen3-235B-rewritten and Qwen3-14B-scored;
+           +20.7 HumanEval pass@1 vs Stack-Edu"
+
+  - name: math_swallow_v2
+    hf: tokyotech-llm/swallow-math-v2
+    config: swallow-math-v2-qa
+    split: train
+    text_key: text
+    weight: 0.15
+    epochs_cap: 3.0
+    note: "32B tok, Apache-2.0, Q&A + textbook rewrites of FineMath-3+"

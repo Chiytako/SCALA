@@ -1,0 +1,182 @@
+# SCALA 8B-A1B v3: llm-jp-tokenizer v4 (196,608 vocab), d_token 1024.
+# Total 8.06B, active 1.21B, amortised 0.63B (scripts/count_params.py).
+
+vocab_size: 196608          # llm-jp-tokenizer v4; must match the KD teacher exactly
+d_token: 1024               # D_0; also the level-1 decoder width
+max_seq_len: 8192
+
+# Untied: the L1 decoder residual is seeded with the previous token's
+# embedding, so a tied head starts the model as a confident copier.
+tie_word_embeddings: false
+scale_embeddings: true
+init_std: 0.02
+
+# RecGen settings kept to match the published 8B checkpoint.  For new runs
+# prefer rec_loss_alpha 0.0 + chunk_cond_prob 1.0 (ChunkGen); the fields interact.
+rec_loss_alpha: 0.3
+rec_loss_kind: cosine
+rec_loss_detach_target: true
+z_loss_weight: 1.0e-4
+logit_softcap: null
+mtp_depth: 1
+mtp_loss_weight: 0.3
+dtype: bfloat16
+
+levels:
+  # Level 1: 4 tokens per unit.
+  - chunk_size: 4
+    converter_width: 4
+    converter_kernel: 3
+    chunker: concat
+    rec_loss_weight: 1.0
+
+    encoder:                # F^(1): S/4 units; feeds the level-2 tower
+      d_model: 2048
+      n_layers: 12
+      ffn_inter_size: 4096
+      n_dense_layers: 1
+      scale_residual_init: true
+      learned_residual_scale: true
+      full_attn_every: 3    # 2 windowed layers then 1 global
+      attention:
+        kind: gqa
+        n_heads: 16
+        n_kv_heads: 4
+        head_dim: 128
+        qk_norm: true
+        output_gate: true
+        rope_theta: 1000000.0
+        rope_partial: 0.5
+        window: 512         # 512 units = 2048 tokens of local context
+      moe:
+        enabled: true
+        n_routed_experts: 160
+        n_shared_experts: 1
+        top_k: 4
+        expert_inter_size: 384
+        shared_inter_size: 512
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.002
+        bias_controller: pid
+        pid_kp: 1.0
+        pid_ki: 0.05
+        pid_kd: 0.2
+        bias_clip: 2.0
+        capacity_factor: 1.25
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001
+        n_groups: 8
+        topk_groups: 4
+
+    decoder:                # G^(1): 8 positions per unit -> 2S rows, amortisation 1
+      d_model: 1024
+      n_layers: 6
+      ffn_inter_size: 2816
+      n_dense_layers: 1
+      scale_residual_init: true
+      learned_residual_scale: true
+      attention:
+        kind: gqa
+        n_heads: 8
+        n_kv_heads: 2
+        head_dim: 128
+        qk_norm: true
+        output_gate: true
+        rope_theta: 10000.0
+        rope_partial: 1.0
+      moe:
+        enabled: true
+        n_routed_experts: 192   # most rows -> most experts
+        n_shared_experts: 1
+        top_k: 4
+        expert_inter_size: 384
+        shared_inter_size: 512
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.002
+        bias_controller: pid
+        bias_clip: 2.0
+        capacity_factor: 1.25
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001
+
+  # Level 2: 16 tokens per unit; the only cache that survives into RecGen.
+  - chunk_size: 4
+    converter_width: 4
+    converter_kernel: 3
+    chunker: concat
+    rec_loss_weight: 1.0
+
+    encoder:                # F^(2): S/16 units; MLA + weight-absorbed latent KV cache
+      d_model: 2048
+      n_layers: 12
+      ffn_inter_size: 4096
+      n_dense_layers: 2     # two dense layers before any routing at all
+      scale_residual_init: true
+      learned_residual_scale: true
+      attention:
+        kind: mla
+        n_heads: 16
+        mla_q_lora_rank: 768
+        mla_kv_lora_rank: 256
+        mla_qk_nope_head_dim: 128
+        mla_qk_rope_head_dim: 64
+        mla_v_head_dim: 128
+        qk_norm: false      # must stay false: QK-Norm acts on the decompressed
+        output_gate: true   # head vectors and breaks weight absorption
+        rope_theta: 1000000.0
+      moe:
+        enabled: true
+        n_routed_experts: 48
+        n_shared_experts: 1     # shared expert keeps a dense path alive if routing degrades
+        top_k: 4
+        expert_inter_size: 384
+        shared_inter_size: 512
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.002
+        bias_controller: pid
+        pid_kp: 1.0
+        pid_ki: 0.05
+        pid_kd: 0.2
+        bias_clip: 2.0
+        capacity_factor: 1.25
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001
+
+    decoder:                # G^(2): S/2 rows; width forced to the L1 encoder d_model
+      d_model: 2048
+      n_layers: 4
+      ffn_inter_size: 4096
+      n_dense_layers: 1
+      scale_residual_init: true
+      learned_residual_scale: true
+      attention:
+        kind: gqa
+        n_heads: 16
+        n_kv_heads: 4
+        head_dim: 128
+        qk_norm: true
+        output_gate: true
+        rope_theta: 10000.0
+        rope_partial: 1.0
+      moe:
+        enabled: true
+        n_routed_experts: 96
+        n_shared_experts: 1
+        top_k: 4
+        expert_inter_size: 384
+        shared_inter_size: 512
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.002
+        bias_controller: pid
+        bias_clip: 2.0
+        capacity_factor: 1.25
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001

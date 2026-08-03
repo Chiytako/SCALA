@@ -1,0 +1,51 @@
+# SCALA small training run on GB10 (unified memory, 122 GiB): allocator capped
+# at 50% -- uncapped runs can wedge the machine, not just OOM.
+train:
+  model_config: configs/base_small_recur.yaml
+  data_root: data/tokens_ja
+  out_dir: runs/recgen-recur
+  run_name: recgen-recur
+
+  seq_len: 1024
+  micro_batch_size: 32
+  global_batch_tokens: 131072        # 128K tokens/step -> 1,526 steps
+  total_tokens: 80.0e6
+  bs_warmup_start_frac: 0.5
+  bs_warmup_tokens: 10.0e6
+
+  lr: 1.5e-3
+  adamw_lr_mult: 1.0
+  weight_decay: 0.1
+  embedding_weight_decay: 0.0
+  momentum: 0.95
+  ns_steps: 5
+  adam_betas: [0.9, 0.95]
+  grad_clip: 1.0
+  warmup_steps: 100
+  decay_frac: 0.25
+  min_lr_ratio: 0.03
+  decay_shape: 1-sqrt
+  spike_guard: true
+
+  moe_bias_freeze_frac: 0.95
+  mtp_weight_start: 0.3
+  mtp_weight_end: 0.1
+  self_cond_prob_end: 0.0
+  self_cond_ramp_frac: 0.5
+
+  parallel: none
+  dtype: bfloat16
+  compile: true                      # fuses the LM-head/log-softmax slice
+  compile_mode: default
+  activation_checkpointing: none
+  num_workers: 6
+  seed: 20260726
+  max_memory_fraction: 0.5           # 61 of 122 GiB
+
+  log_every: 10
+  eval_every: 200
+  eval_batches: 20
+  save_every: 100
+  keep_last: 3
+  wandb_project: null
+  resume: auto

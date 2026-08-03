@@ -1,0 +1,30 @@
+# Local smoke-test run: tiny model, synthetic or small real data, one GPU.
+train:
+  model_config: configs/base_tiny.yaml
+  data_root: data/tokens_dummy
+  out_dir: runs/tiny
+  run_name: scala-tiny
+
+  seq_len: 256
+  micro_batch_size: 8
+  global_batch_tokens: 16384
+  total_tokens: 4.0e6
+  bs_warmup_tokens: 0
+
+  lr: 3.0e-3
+  warmup_steps: 20
+  decay_frac: 0.3
+  grad_clip: 1.0
+
+  parallel: none
+  compile: false
+  activation_checkpointing: none
+  num_workers: 0
+
+  log_every: 10
+  eval_every: 100
+  eval_batches: 5
+  save_every: 200
+  keep_last: 1
+  wandb_project: null
+  resume: none

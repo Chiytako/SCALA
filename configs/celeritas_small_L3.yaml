@@ -1,0 +1,349 @@
+# CELERITAS small (~250M), three levels: celeritas_small.yaml with the top level
+# split so C_<=L goes 16 -> 64.  Not verified at this scale.
+
+vocab_size: 99584
+d_token: 512
+max_seq_len: 2048
+levels:
+- chunk_size: 4
+  converter_width: 1
+  converter_kernel: 3
+  chunker: concat
+  encoder:
+    d_model: 512
+    n_layers: 6
+    ffn_inter_size: 1408
+    n_dense_layers: 1
+    attention:
+      kind: gqa
+      n_heads: 8
+      n_kv_heads: 2
+      head_dim: 64
+      mla_q_lora_rank: null
+      mla_kv_lora_rank: 256
+      mla_qk_nope_head_dim: 96
+      mla_qk_rope_head_dim: 32
+      mla_v_head_dim: 96
+      qk_norm: true
+      pos: rope
+      rope_theta: 500000.0
+      rope_partial: 0.5
+      window: null
+      block: null
+      attn_sink: false
+      output_gate: true
+      softmax_scale: null
+      dropout: 0.0
+    moe:
+      enabled: true
+      n_routed_experts: 96
+      n_shared_experts: 1
+      top_k: 4
+      expert_inter_size: 128
+      shared_inter_size: 256
+      score_func: sigmoid
+      norm_topk_prob: true
+      routed_scaling_factor: 2.5
+      bias_update_rate: 0.002
+      bias_controller: pid
+      pid_kp: 1.0
+      pid_ki: 0.05
+      pid_kd: 0.2
+      bias_clip: 2.0
+      seq_aux_loss_weight: 0.0001
+      router_z_loss_weight: 0.001
+      n_groups: 1
+      topk_groups: 1
+      capacity_factor: null
+    norm_eps: 1.0e-06
+    scale_residual_init: true
+    learned_residual_scale: true
+    full_attn_every: 0
+  decoder:
+    d_model: 512
+    n_layers: 4
+    ffn_inter_size: 1408
+    n_dense_layers: 1
+    attention:
+      kind: gqa
+      n_heads: 8
+      n_kv_heads: 2
+      head_dim: 64
+      mla_q_lora_rank: null
+      mla_kv_lora_rank: 256
+      mla_qk_nope_head_dim: 96
+      mla_qk_rope_head_dim: 32
+      mla_v_head_dim: 96
+      qk_norm: true
+      pos: rope
+      rope_theta: 10000.0
+      rope_partial: 1.0
+      window: null
+      block: null
+      attn_sink: false
+      output_gate: true
+      softmax_scale: null
+      dropout: 0.0
+    moe:
+      enabled: true
+      n_routed_experts: 96
+      n_shared_experts: 1
+      top_k: 3
+      expert_inter_size: 128
+      shared_inter_size: 256
+      score_func: sigmoid
+      norm_topk_prob: true
+      routed_scaling_factor: 2.5
+      bias_update_rate: 0.002
+      bias_controller: pid
+      pid_kp: 1.0
+      pid_ki: 0.05
+      pid_kd: 0.2
+      bias_clip: 2.0
+      seq_aux_loss_weight: 0.0001
+      router_z_loss_weight: 0.001
+      n_groups: 1
+      topk_groups: 1
+      capacity_factor: null
+    norm_eps: 1.0e-06
+    scale_residual_init: true
+    learned_residual_scale: true
+    full_attn_every: 0
+  rec_loss_weight: 1.0
+  encoder_block_local: false
+  encoder_window: 16
+  decoder_lookback: 0
+  decoder_stream: 64
+- chunk_size: 4
+  converter_width: 2
+  converter_kernel: 3
+  chunker: concat
+  encoder:
+    d_model: 512
+    n_layers: 2
+    ffn_inter_size: 768
+    n_dense_layers: 2
+    attention:
+      kind: gqa
+      n_heads: 8
+      n_kv_heads: 2
+      head_dim: 64
+      mla_q_lora_rank: null
+      mla_kv_lora_rank: 256
+      mla_qk_nope_head_dim: 96
+      mla_qk_rope_head_dim: 32
+      mla_v_head_dim: 96
+      qk_norm: true
+      pos: rope
+      rope_theta: 500000.0
+      rope_partial: 0.5
+      window: null
+      block: null
+      attn_sink: false
+      output_gate: true
+      softmax_scale: null
+      dropout: 0.0
+    moe:
+      enabled: false
+      n_routed_experts: 96
+      n_shared_experts: 1
+      top_k: 4
+      expert_inter_size: 128
+      shared_inter_size: 256
+      score_func: sigmoid
+      norm_topk_prob: true
+      routed_scaling_factor: 2.5
+      bias_update_rate: 0.002
+      bias_controller: pid
+      pid_kp: 1.0
+      pid_ki: 0.05
+      pid_kd: 0.2
+      bias_clip: 2.0
+      seq_aux_loss_weight: 0.0001
+      router_z_loss_weight: 0.001
+      n_groups: 1
+      topk_groups: 1
+      capacity_factor: null
+    norm_eps: 1.0e-06
+    scale_residual_init: true
+    learned_residual_scale: true
+    full_attn_every: 0
+  decoder:
+    d_model: 512
+    n_layers: 2
+    ffn_inter_size: 768
+    n_dense_layers: 2
+    attention:
+      kind: gqa
+      n_heads: 8
+      n_kv_heads: 2
+      head_dim: 64
+      mla_q_lora_rank: null
+      mla_kv_lora_rank: 256
+      mla_qk_nope_head_dim: 96
+      mla_qk_rope_head_dim: 32
+      mla_v_head_dim: 96
+      qk_norm: true
+      pos: rope
+      rope_theta: 10000.0
+      rope_partial: 1.0
+      window: null
+      block: null
+      attn_sink: false
+      output_gate: true
+      softmax_scale: null
+      dropout: 0.0
+    moe:
+      enabled: false
+      n_routed_experts: 96
+      n_shared_experts: 1
+      top_k: 3
+      expert_inter_size: 128
+      shared_inter_size: 256
+      score_func: sigmoid
+      norm_topk_prob: true
+      routed_scaling_factor: 2.5
+      bias_update_rate: 0.002
+      bias_controller: pid
+      pid_kp: 1.0
+      pid_ki: 0.05
+      pid_kd: 0.2
+      bias_clip: 2.0
+      seq_aux_loss_weight: 0.0001
+      router_z_loss_weight: 0.001
+      n_groups: 1
+      topk_groups: 1
+      capacity_factor: null
+    norm_eps: 1.0e-06
+    scale_residual_init: true
+    learned_residual_scale: true
+    full_attn_every: 0
+  rec_loss_weight: 1.0
+  encoder_block_local: false
+  encoder_window: 16
+  decoder_lookback: 0
+  decoder_stream: 64
+- chunk_size: 4
+  converter_width: 2
+  converter_kernel: 3
+  chunker: concat
+  encoder:
+    d_model: 512
+    n_layers: 8
+    ffn_inter_size: 768
+    n_dense_layers: 8
+    attention:
+      kind: mla
+      n_heads: 8
+      n_kv_heads: 4
+      head_dim: null
+      mla_q_lora_rank: 256
+      mla_kv_lora_rank: 128
+      mla_qk_nope_head_dim: 96
+      mla_qk_rope_head_dim: 0
+      mla_v_head_dim: 64
+      qk_norm: false
+      pos: nope
+      rope_theta: 1000000.0
+      rope_partial: 1.0
+      window: null
+      block: null
+      attn_sink: true
+      output_gate: true
+      softmax_scale: null
+      dropout: 0.0
+    moe:
+      enabled: false
+      n_routed_experts: 64
+      n_shared_experts: 1
+      top_k: 6
+      expert_inter_size: 768
+      shared_inter_size: 768
+      score_func: sigmoid
+      norm_topk_prob: true
+      routed_scaling_factor: 2.5
+      bias_update_rate: 0.001
+      bias_controller: sign
+      pid_kp: 1.0
+      pid_ki: 0.05
+      pid_kd: 0.2
+      bias_clip: 2.0
+      seq_aux_loss_weight: 0.0001
+      router_z_loss_weight: 0.001
+      n_groups: 1
+      topk_groups: 1
+      capacity_factor: null
+    norm_eps: 1.0e-06
+    scale_residual_init: true
+    learned_residual_scale: true
+    full_attn_every: 0
+  decoder:
+    d_model: 512
+    n_layers: 2
+    ffn_inter_size: 768
+    n_dense_layers: 2
+    attention:
+      kind: gqa
+      n_heads: 8
+      n_kv_heads: 2
+      head_dim: 64
+      mla_q_lora_rank: null
+      mla_kv_lora_rank: 256
+      mla_qk_nope_head_dim: 96
+      mla_qk_rope_head_dim: 32
+      mla_v_head_dim: 96
+      qk_norm: true
+      pos: rope
+      rope_theta: 10000.0
+      rope_partial: 1.0
+      window: null
+      block: null
+      attn_sink: false
+      output_gate: true
+      softmax_scale: null
+      dropout: 0.0
+    moe:
+      enabled: false
+      n_routed_experts: 96
+      n_shared_experts: 1
+      top_k: 3
+      expert_inter_size: 128
+      shared_inter_size: 256
+      score_func: sigmoid
+      norm_topk_prob: true
+      routed_scaling_factor: 2.5
+      bias_update_rate: 0.002
+      bias_controller: pid
+      pid_kp: 1.0
+      pid_ki: 0.05
+      pid_kd: 0.2
+      bias_clip: 2.0
+      seq_aux_loss_weight: 0.0001
+      router_z_loss_weight: 0.001
+      n_groups: 1
+      topk_groups: 1
+      capacity_factor: null
+    norm_eps: 1.0e-06
+    scale_residual_init: true
+    learned_residual_scale: true
+    full_attn_every: 0
+  rec_loss_weight: 1.0
+  encoder_block_local: false
+  encoder_window: null
+  decoder_lookback: 0
+  decoder_stream: 64
+tie_word_embeddings: true
+scale_embeddings: true
+init_std: 0.02
+rec_loss_alpha: 0.0
+rec_loss_kind: cosine
+rec_loss_detach_target: true
+rec_loss_min_level: 2
+chunk_cond_prob: 0.0
+recursive_decoder_input: false
+global_skip: false
+z_loss_weight: 0.0001
+logit_softcap: null
+mtp_depth: 1
+mtp_loss_weight: 0.3
+dtype: bfloat16

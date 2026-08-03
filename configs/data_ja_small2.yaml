@@ -1,0 +1,23 @@
+# Supplementary data mixture: Japanese web text (cc100-ja) + English wikipedia.
+# cc100-ja used instead of fineweb-2-edu-japanese for small shard size (streaming).
+tokenizer: llm-jp/llm-jp-3-1.8b
+append_eos: true
+shard_tokens: 67108864
+dtype: uint32
+seed: 20260726
+
+sources:
+  - name: _skip_ja_cc100
+    hf: range3/cc100-ja
+    split: train
+    text_key: text
+    weight: 0.60
+    epochs_cap: 1.0
+
+  - name: en_wikipedia
+    hf: wikimedia/wikipedia
+    config: 20231101.en
+    split: train
+    text_key: text
+    weight: 0.40
+    epochs_cap: 1.0

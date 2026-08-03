@@ -1,0 +1,110 @@
+# SCALA pretraining data mixture: Japanese-majority, English minority, code, math.
+# `weight` is sampling probability, not corpus size; `epochs_cap` bounds repeats.
+
+tokenizer: llm-jp/llm-jp-3-1.8b        # llm-jp-tokenizer v3, 99,574 unigram+byte-fallback
+eos_token: "</s>"
+append_eos: true
+shard_tokens: 268435456                 # 2^28 tokens per shard (~1 GiB at uint32)
+dtype: uint32
+seed: 20260726
+
+sources:
+  # ---------------------------------------------------------------- Japanese
+  - name: ja_fineweb2_edu
+    hf: hotchpotch/fineweb-2-edu-japanese
+    split: train
+    text_key: text
+    weight: 0.26
+    epochs_cap: 2.0
+    note: "~89B tok, FineWeb-2 ja filtered by an educational-quality classifier"
+
+  - name: ja_llmjp_v3
+    hf: kajuma/llm-jp-corpus-v3-ja
+    split: train
+    text_key: text
+    weight: 0.16
+    epochs_cap: 2.0
+    note: "mC4-ja + ja Wikipedia as shipped in llm-jp-corpus v3"
+
+  - name: ja_fineweb2
+    hf: HuggingFaceFW/fineweb-2
+    config: jpn_Jpan
+    split: train
+    text_key: text
+    weight: 0.09
+    epochs_cap: 1.0
+    note: "unfiltered FineWeb-2 Japanese, for raw coverage/diversity"
+
+  - name: ja_wikipedia
+    hf: wikimedia/wikipedia
+    config: 20231101.ja
+    split: train
+    text_key: text
+    weight: 0.04
+    epochs_cap: 4.0
+
+  - name: ja_aozora
+    hf: globis-university/aozorabunko-clean
+    split: train
+    text_key: text
+    weight: 0.01
+    epochs_cap: 4.0
+    filter_meta: {"文字遣い種別": "新字新仮名"}
+    note: "public-domain literature; long-form, high-quality prose"
+
+  # ----------------------------------------------------------------- English
+  - name: en_fineweb_edu
+    hf: HuggingFaceFW/fineweb-edu
+    config: sample-100BT
+    split: train
+    text_key: text
+    weight: 0.20
+    epochs_cap: 1.0
+
+  - name: en_dclm
+    hf: mlfoundations/dclm-baseline-1.0-parquet
+    split: train
+    text_key: text
+    weight: 0.09
+    epochs_cap: 1.0
+
+  # -------------------------------------------------------------------- code
+  - name: code_swallow_v2
+    hf: tokyotech-llm/swallow-code-v2
+    split: train
+    text_key: text
+    weight: 0.08
+    epochs_cap: 2.0
+    note: "49.8B tok, Apache-2.0, LLM-rewritten Python from the-stack-v2"
+
+  # -------------------------------------------------------------------- math
+  - name: math_swallow_v2
+    hf: tokyotech-llm/swallowmath-v2
+    split: train
+    text_key: text
+    weight: 0.05
+    epochs_cap: 2.0
+
+  - name: math_proofpile2
+    hf: EleutherAI/proof-pile-2
+    config: algebraic-stack
+    split: train
+    text_key: text
+    weight: 0.02
+    epochs_cap: 2.0
+
+# Held-out validation streams (Japanese, English), evaluated separately.
+validation:
+  - name: val_ja_wiki
+    hf: wikimedia/wikipedia
+    config: 20231101.ja
+    split: train
+    text_key: text
+    take: 2000
+    skip: 0
+  - name: val_en_wiki
+    hf: wikimedia/wikipedia
+    config: 20231101.en
+    split: train
+    text_key: text
+    take: 2000

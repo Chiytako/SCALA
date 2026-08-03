@@ -1,0 +1,49 @@
+# SCALA small: single-GPU Japanese pretraining run.
+train:
+  model_config: configs/base_small.yaml
+  data_root: data/tokens_ja
+  out_dir: runs/scala-small
+  run_name: scala-small
+
+  seq_len: 1024
+  micro_batch_size: 16
+  global_batch_tokens: 131072        # 128K tokens/step
+  total_tokens: 400.0e6
+  bs_warmup_start_frac: 0.5
+  bs_warmup_tokens: 20.0e6
+
+  # Muon with RMS-matching lets an AdamW-scale LR transfer directly.
+  lr: 1.5e-3
+  adamw_lr_mult: 1.0
+  weight_decay: 0.1
+  embedding_weight_decay: 0.0
+  momentum: 0.95
+  ns_steps: 5
+  adam_betas: [0.9, 0.95]
+  grad_clip: 1.0
+  warmup_steps: 150
+  decay_frac: 0.25
+  min_lr_ratio: 0.03
+  decay_shape: 1-sqrt
+  spike_guard: true
+
+  moe_bias_freeze_frac: 0.95
+  mtp_weight_start: 0.3
+  mtp_weight_end: 0.1
+  self_cond_prob_end: 0.25
+  self_cond_ramp_frac: 0.5
+
+  parallel: none
+  dtype: bfloat16
+  compile: false                     # Windows Inductor compile is unstable
+  activation_checkpointing: none
+  num_workers: 4
+  seed: 20260726
+
+  log_every: 20
+  eval_every: 400
+  eval_batches: 20
+  save_every: 400
+  keep_last: 2
+  wandb_project: null
+  resume: auto

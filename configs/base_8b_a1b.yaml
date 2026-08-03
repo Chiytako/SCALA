@@ -1,0 +1,164 @@
+# SCALA 8B-A1B: 2-level hierarchical MoE LM (arXiv:2512.20687 architecture),
+# aux-loss-free DeepSeekMoE per stack, chunk4/chunk4 (16 tok/meta unit).
+
+vocab_size: 99584          # llm-jp-tokenizer v3 (99,574) padded up to a x128
+d_token: 2048              # D_0
+max_seq_len: 8192
+tie_word_embeddings: false
+scale_embeddings: true
+init_std: 0.02
+
+# --- objective ---------------------------------------------------------------
+rec_loss_alpha: 0.3        # paper's ablation optimum
+rec_loss_kind: cosine
+rec_loss_detach_target: true
+z_loss_weight: 1.0e-4      # PaLM-style LM z-loss
+logit_softcap: null
+mtp_depth: 1               # DeepSeek-V3 MTP head
+mtp_loss_weight: 0.3
+dtype: bfloat16
+
+levels:
+  # ===========================================================================
+  # Level 1 -- chunk 4 tokens.  Encoder runs every 4 tokens over T/4 units;
+  # decoder runs every token over an 8-position window.
+  # ===========================================================================
+  - chunk_size: 4
+    converter_width: 4      # R_1
+    converter_kernel: 3
+    chunker: concat
+    rec_loss_weight: 1.0
+
+    encoder:                # F^(1):  T/4 units, width 2048
+      d_model: 2048
+      n_layers: 9
+      ffn_inter_size: 5632
+      n_dense_layers: 1     # first layer dense -> stable early routing
+      norm_eps: 1.0e-6
+      scale_residual_init: true
+      attention:
+        kind: gqa
+        n_heads: 16
+        n_kv_heads: 4
+        head_dim: 128
+        qk_norm: true
+        rope_theta: 1000000.0
+        rope_partial: 0.5   # partial RoPE (ZAYA1 / Qwen3-Next)
+        window: null
+      moe:
+        enabled: true
+        n_routed_experts: 96
+        n_shared_experts: 1
+        top_k: 4
+        expert_inter_size: 192
+        shared_inter_size: 384
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.001
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001
+        n_groups: 1
+        topk_groups: 1
+
+    decoder:                # G^(1):  8 positions (R_1 + C_1), width D_0 = 2048
+      d_model: 2048
+      n_layers: 5
+      ffn_inter_size: 5632
+      n_dense_layers: 1
+      norm_eps: 1.0e-6
+      scale_residual_init: true
+      attention:
+        kind: gqa
+        n_heads: 16
+        n_kv_heads: 4
+        head_dim: 128
+        qk_norm: true
+        rope_theta: 10000.0   # only 8 positions -- small theta is correct here
+        rope_partial: 1.0
+        window: null
+      moe:
+        enabled: true
+        n_routed_experts: 64
+        n_shared_experts: 1
+        top_k: 3
+        expert_inter_size: 192
+        shared_inter_size: 384
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.001
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001
+
+  # ===========================================================================
+  # Level 2 -- chunk 4 level-1 units (= 16 tokens).  This encoder carries the
+  # global context and is amortised 16x, so it holds most of the parameters.
+  # ===========================================================================
+  - chunk_size: 4
+    converter_width: 4      # R_2
+    converter_kernel: 3
+    chunker: concat
+    rec_loss_weight: 1.0
+
+    encoder:                # F^(2):  T/16 units, width 2048, MLA
+      d_model: 2048
+      n_layers: 16
+      ffn_inter_size: 5632
+      n_dense_layers: 1
+      norm_eps: 1.0e-6
+      scale_residual_init: true
+      attention:
+        kind: mla           # DeepSeek-V3 MLA: 320 KV elems/layer vs GQA's 1024
+        n_heads: 16
+        mla_q_lora_rank: 768
+        mla_kv_lora_rank: 256
+        mla_qk_nope_head_dim: 128
+        mla_qk_rope_head_dim: 64
+        mla_v_head_dim: 128
+        qk_norm: true
+        rope_theta: 1000000.0
+      moe:
+        enabled: true
+        n_routed_experts: 320
+        n_shared_experts: 1
+        top_k: 5
+        expert_inter_size: 192
+        shared_inter_size: 384
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.001
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001
+        n_groups: 8           # device-limited routing for expert parallelism
+        topk_groups: 4
+
+    decoder:                # G^(2):  8 positions, width D_1 = 2048
+      d_model: 2048
+      n_layers: 3
+      ffn_inter_size: 5632
+      n_dense_layers: 1
+      norm_eps: 1.0e-6
+      scale_residual_init: true
+      attention:
+        kind: gqa
+        n_heads: 16
+        n_kv_heads: 4
+        head_dim: 128
+        qk_norm: true
+        rope_theta: 10000.0
+        rope_partial: 1.0
+      moe:
+        enabled: true
+        n_routed_experts: 48
+        n_shared_experts: 1
+        top_k: 3
+        expert_inter_size: 192
+        shared_inter_size: 384
+        score_func: sigmoid
+        norm_topk_prob: true
+        routed_scaling_factor: 2.5
+        bias_update_rate: 0.001
+        seq_aux_loss_weight: 0.0001
+        router_z_loss_weight: 0.001

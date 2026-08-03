@@ -1,0 +1,121 @@
+# SCALA v2 pretraining data mixture: Japanese-majority (FineWeb-2-edu, FineWeb-2,
+# Wikipedia, Aozora) + English (Zyda-2, FinePDFs-edu, FineWeb-edu) + math.
+
+tokenizer: llm-jp/llm-jp-3-1.8b
+append_eos: true
+shard_tokens: 268435456
+dtype: uint32
+seed: 20260727
+
+sources:
+  # ---------------------------------------------------------------- Japanese
+  - name: ja_fineweb2_edu
+    hf: hotchpotch/fineweb-2-edu-japanese
+    split: train
+    text_key: text
+    weight: 0.32
+    epochs_cap: 2.0
+    note: "89.3B tok, educational-quality classifier over FineWeb-2 ja (ODC-BY)"
+
+  - name: ja_fineweb2
+    hf: HuggingFaceFW/fineweb-2
+    config: jpn_Jpan
+    split: train
+    text_key: text
+    weight: 0.14
+    epochs_cap: 1.0
+    note: "unfiltered, for coverage the edu classifier throws away"
+
+  - name: ja_wikipedia
+    hf: wikimedia/wikipedia
+    config: 20231101.ja
+    split: train
+    text_key: text
+    weight: 0.05
+    epochs_cap: 4.0
+
+  - name: ja_aozora
+    hf: globis-university/aozorabunko-clean
+    split: train
+    text_key: text
+    weight: 0.01
+    epochs_cap: 4.0
+    filter_meta: {"文字遣い種別": "新字新仮名"}
+
+  # ----------------------------------------------------------------- English
+  - name: en_zyda2
+    hf: Zyphra/Zyda-2
+    config: sample-100BT
+    split: train
+    text_key: text
+    weight: 0.18
+    epochs_cap: 1.0
+
+  - name: en_finepdfs_edu
+    hf: HuggingFaceFW/finepdfs-edu
+    config: eng_Latn
+    split: train
+    text_key: text
+    weight: 0.08
+    epochs_cap: 1.0
+    note: "PDF-sourced; a document type essentially absent from CC-derived sets"
+
+  - name: en_fineweb_edu
+    hf: HuggingFaceFW/fineweb-edu
+    config: sample-100BT
+    split: train
+    text_key: text
+    weight: 0.06
+    epochs_cap: 1.0
+
+  # -------------------------------------------------------------- code / math
+  # code_swallow_v2 disabled: parquet schema mismatch breaks the Arrow reader.
+  - name: code_swallow_v2
+    hf: tokyotech-llm/swallow-code-v2
+    config: swallowcode-v2
+    split: train
+    text_key: text
+    weight: 0.0
+    epochs_cap: 2.0
+    note: "49.8B tok, Apache-2.0, Qwen3-235B-rewritten; +20.7 HumanEval vs Stack-Edu"
+
+  - name: math_swallow_v2
+    hf: tokyotech-llm/swallow-math-v2
+    config: swallow-math-v2-qa
+    split: train
+    text_key: text
+    weight: 0.16
+    epochs_cap: 3.0
+    note: "32B tok, Apache-2.0, Q&A + textbook rewrites of FineMath-3+"
+
+
+# Mid-training / WSD-decay mixture: higher-quality blend for the cooldown phase.
+# Point --data-root at a directory built from this list.
+midtrain:
+  - name: mid_math_swallow
+    hf: tokyotech-llm/swallow-math-v2
+    config: swallow-math-v2-qa
+    split: train
+    text_key: text
+    weight: 0.30
+    epochs_cap: 4.0
+  - name: mid_code_swallow
+    hf: tokyotech-llm/swallow-code-v2
+    config: swallowcode-v2
+    split: train
+    text_key: text
+    weight: 0.25
+    epochs_cap: 4.0
+  - name: mid_ja_edu
+    hf: hotchpotch/fineweb-2-edu-japanese
+    split: train
+    text_key: text
+    weight: 0.30
+    epochs_cap: 4.0
+  - name: mid_ja_wiki
+    hf: wikimedia/wikipedia
+    config: 20231101.ja
+    split: train
+    text_key: text
+    weight: 0.15
+    epochs_cap: 8.0
